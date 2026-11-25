@@ -6,9 +6,6 @@ import threading
 import requests
 from flask import Flask
 
-# ==========================================
-# 1. ASOSIY SOZLAMALAR VA MA'LUMOTLAR
-# ==========================================
 TOKEN = "9073466221:AAGQpv2_6_6UNTg7sRGdPNPln9xgLDFXREs"
 MENING_ID = "771626113"
 OXIRGI_UPDATE_ID = 0
@@ -34,9 +31,6 @@ AKTIVLAR = {
     "OIL": {"ticker": "BZ=F", "nomi": "🛢 BRENT NEFTI", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 0.10, "sl75": 0.08, "p200": 0.20, "sl150": 0.15, "pip_qiymat": 10.0}
 }
 
-# ==========================================
-# 2. TELEGRAM XABAR VA KLAVIATURA MODULI
-# ==========================================
 def asosiy_klaviatura():
     holat_tugma = "⏸ Pauza" if BOT_FAOL else "▶️ Davom etish"
     return {
@@ -69,14 +63,10 @@ def telegramga_yuborish(xabar, menyu="asosiy"):
     data = {"chat_id": MENING_ID, "text": xabar, "reply_markup": json.dumps(klaviatura)}
     requests.post(url, data=data, timeout=15)
 
-# ==========================================
-# 3. INDIKATORLAR VA BOZOR MA'LUMOTLARI MODULI
-# ==========================================
 def ema_hisoblash(narxlar, davr):
     k = 2 / (davr + 1)
     birinchi = next(iter(narxlar))
-    ema = list()
-    ema.append(birinchi)
+    ema = [birinchi]
     for narx in narxlar[1:]:
         ema.append(narx * k + ema[-1] * (1 - k))
     return ema
@@ -96,7 +86,7 @@ def bollinger_hisoblash(narxlar, davr=20):
     return ortacha + (2 * ogish), ortacha, ortacha - (2 * ogish)
 
 def rsi_hisoblash(narxlar, davr=14):
-    farqlar = [narxlar[i] - narxlar[i-1] for i in range(1, len(narxlar))]
+    farqlar = [narxlar[i] - narxlar[i - 1] for i in range(1, len(narxlar))]
     osish = [f if f > 0 else 0 for f in farqlar[-davr:]]
     tushish = [-f if f < 0 else 0 for f in farqlar[-davr:]]
     ortacha_osish = sum(osish) / davr
@@ -119,9 +109,9 @@ def malumot_olish(ticker, interval, range_val):
     return close, high, low
 
 def atr_hisoblash(high, low, close, davr=14):
-    tr_list = list()
+    tr_list = []
     for i in range(1, len(close)):
-        tr = max(high[i] - low[i], abs(high[i] - close[i-1]), abs(low[i] - close[i-1]))
+        tr = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
         tr_list.append(tr)
     return sum(tr_list[-davr:]) / davr
 
@@ -135,18 +125,13 @@ def katta_trend_olish(ticker):
     ema50 = ema_hisoblash(c1h, 50)
     return "BUY" if c1h[-1] > ema50[-1] else "SELL"
 
-# ==========================================
-# 4. ALOHIDA SO'ZLI ANALIZ MODULI (SO'RALGANDA)
-# ==========================================
 def sozli_analiz_tayyorla(kalit):
     ticker = AKTIVLAR[kalit]["ticker"]
     nomi = AKTIVLAR[kalit]["nomi"]
     anq = AKTIVLAR[kalit]["aniqlik"]
-
     c15, h15, l15 = malumot_olish(ticker, "15m", "5d")
     c1h, _, _ = malumot_olish(ticker, "1h", "1mo")
     c4h, _, _ = malumot_olish(ticker, "4h", "3mo")
-
     narx = round(c15[-1], anq)
     ema9 = ema_hisoblash(c15, 9)
     ema21 = ema_hisoblash(c15, 21)
@@ -156,41 +141,27 @@ def sozli_analiz_tayyorla(kalit):
     rsi = round(rsi_hisoblash(c15, 14), 1)
     max_24h = round(max(h15[-96:]), anq)
     min_24h = round(min(l15[-96:]), anq)
-
     t4 = "yuqoriga" if narx > ema50_4h[-1] else "pastga"
     t1 = "yuqoriga" if narx > ema50_1h[-1] else "pastga"
     qisqa = "xaridorlar qo'lida (EMA9 > EMA21)" if ema9[-1] > ema21[-1] else "sotuvchilar qo'lida (EMA9 < EMA21)"
     impuls = "o'sish impulsi kuchaymoqda" if macd_l[-1] > sig_l[-1] else "pasayish bosimi ortmoqda"
-
     if rsi > 70:
-        rsi_izoh = f"RSI ({rsi}) haddan tashqari qizib ketgan (Overbought) — orqaga qaytish (korreksiya) xavfi bor, shoshilib BUY ochmang."
+        rsi_izoh = f"RSI ({rsi}) haddan tashqari qizib ketgan — orqaga qaytish xavfi bor, shoshilib BUY ochmang."
     elif rsi < 30:
-        rsi_izoh = f"RSI ({rsi}) haddan tashqari sotilgan (Oversold) — pastdan yuqoriga sakrash ehtimoli yuqori, shoshilib SELL ochmang."
+        rsi_izoh = f"RSI ({rsi}) haddan tashqari sotilgan — pastdan yuqoriga sakrash ehtimoli yuqori, shoshilib SELL ochmang."
     else:
         rsi_izoh = f"RSI ({rsi}) me'yoriy zonada — narx tanlangan yo'nalishda davom etishi uchun yetarli zaxira bor."
-
     if t4 == "yuqoriga" and t1 == "yuqoriga":
-        xulosa = "4 soatlik va 1 soatlik katta trendlar bir ovozdan YUQORIGA qaragan. Faqat narx biroz pastga tushib tayanchga tekkanda BUY izlash eng to'g'ri strategiya."
+        xulosa = "4H va 1H katta trendlar bir ovozdan YUQORIGA qaragan. Faqat narx tayanchga tekkanda BUY izlash eng to'g'ri strategiya."
     elif t4 == "pastga" and t1 == "pastga":
-        xulosa = "4 soatlik va 1 soatlik katta trendlar bir ovozdan PASTGA qaragan. Narx tepaga ko'tarilib qarshilikka urilganda SELL izlash eng xavfsiz yo'l."
+        xulosa = "4H va 1H katta trendlar bir ovozdan PASTGA qaragan. Narx tepaga ko'tarilib qarshilikka urilganda SELL izlash eng xavfsiz yo'l."
     else:
-        xulosa = f"4 soatlik trend {t4}, 1 soatlik trend esa {t1} yo'nalgan. Bozor hozir yo'nalish tanlash bosqichida — faqat kichik (100/200 pips) skalping bilan ishlash tavsiya etiladi."
-
-    matn = (
-        f"📝 {nomi} — SO'Z BILAN BATAFSIL ANALIZ\n\n"
-        f"💰 Joriy narx: {narx} (24s Max: {max_24h} | Min: {min_24h})\n\n"
-        f"1️⃣ Trend holati: Katta 4H trend {t4}, o'rta 1H trend {t1} yo'nalgan. Qisqa muddatli ustunlik {qisqa} va {impuls}.\n\n"
-        f"2️⃣ Kuch ko'rsatkichi: {rsi_izoh}\n\n"
-        f"3️⃣ Xulosa va reja: {xulosa}"
-    )
+        xulosa = f"4H trend {t4}, 1H trend esa {t1} yo'nalgan. Faqat kichik (100/200 pips) skalping bilan ishlash tavsiya etiladi."
+    matn = f"📝 {nomi} — SO'Z BILAN BATAFSIL ANALIZ\n\n💰 Joriy narx: {narx} (Max: {max_24h} | Min: {min_24h})\n\n1️⃣ Trend: 4H {t4}, 1H {t1}. Qisqa ustunlik {qisqa} va {impuls}.\n\n2️⃣ Kuch: {rsi_izoh}\n\n3️⃣ Xulosa: {xulosa}"
     telegramga_yuborish(matn, menyu="analiz")
 
-# ==========================================
-# 5. SAVDO KUZATUVI VA SIGNALLAR MODULI
-# ==========================================
 def savdoni_kuzatish(kalit, joriy_narx):
     nomi = AKTIVLAR[kalit]["nomi"]
-
     savdo = AKTIVLAR[kalit]["savdo"]
     if savdo is not None:
         if savdo["turi"] == "BUY":
@@ -207,3 +178,22 @@ def savdoni_kuzatish(kalit, joriy_narx):
                 telegramga_yuborish(f"🛑 {nomi} (SNAYPER): STOP LOSS ({savdo['sl']}).")
                 AKTIVLAR[kalit]["savdo"] = None
         elif savdo["turi"] == "SELL":
+            if not savdo["tp1_yetdi"] and joriy_narx <= savdo["tp1"]:
+                savdo["tp1_yetdi"] = True
+                STATISTIKA["tp"] += 1
+                telegramga_yuborish(f"✅ {nomi} (SNAYPER): TP1 FOYDA! ({savdo['tp1']}) | SL ni {savdo['kirish']} ga suring.")
+            elif joriy_narx <= savdo["tp2"]:
+                STATISTIKA["tp"] += 1
+                telegramga_yuborish(f"🏆 {nomi} (SNAYPER): TP2 YOPILDI! ({savdo['tp2']})")
+                AKTIVLAR[kalit]["savdo"] = None
+            elif joriy_narx >= savdo["sl"]:
+                STATISTIKA["sl"] += 1
+                telegramga_yuborish(f"🛑 {nomi} (SNAYPER): STOP LOSS ({savdo['sl']}).")
+                AKTIVLAR[kalit]["savdo"] = None
+    skalp = AKTIVLAR[kalit]["skalp"]
+    if skalp is not None:
+        if skalp["turi"] == "BUY":
+            if joriy_narx >= skalp["tp"]:
+                STATISTIKA["tp"] += 1
+                telegramga_yuborish(f"🔥✅ {nomi} (200 PIPS): FOYDA YOPILDI! ({skalp['tp']})")
+                AKTIVLAR[kalit]["skalp"] = None
