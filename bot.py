@@ -171,4 +171,59 @@ def loop_bot():
             for it in res:
                 OXIRGI_UPDATE_ID = it["update_id"]
                 msg = it.get("message", {})
+                
                 if str(msg.get("from", {}).get("id", "")) != MENING_ID:
+                    continue
+                txt = msg.get("text", "")
+                if txt in btns:
+                    tekshir(btns[txt], "tahlil")
+                elif txt in abtn:
+                    analiz_yoz(abtn[txt])
+                elif txt == "📝 So'zli Analiz":
+                    yubor("📝 Qaysi aktivning so'zli analizini o'qiysiz?", "analiz")
+                elif txt == "🔙 Orqaga":
+                    yubor("🔙 Asosiy menyu", "asosiy")
+                elif txt == "🌡 Bozor Kayfiyati":
+                    yubor("🌡 KAYFIYAT:\n\n" + "\n".join(tekshir(k, "kayfiyat") for k in AKTIVLAR))
+                elif txt == "💰 Barcha Narxlar":
+                    yubor("💰 NARXLAR:\n\n" + "\n".join(tekshir(k, "narx") for k in AKTIVLAR))
+                elif txt == "🧮 Lot Hisoblash":
+                    yubor(f"🧮 LOT (${int(DEPOZIT)}):\n\n" + "\n".join(f"{AKTIVLAR[k]['n']}: {lot_calc(k)}" for k in AKTIVLAR) + "\n\nO'zgartirish: lot 500")
+                elif txt.lower().startswith("lot "):
+                    DEPOZIT = float(txt.split()[1])
+                    yubor(f"✅ Depozit ${int(DEPOZIT)} bo'ldi!")
+                elif txt == "⏸ Pauza":
+                    BOT_FAOL = False
+                    yubor("⏸ Pauza yoqildi.")
+                elif txt == "▶️ Davom etish":
+                    BOT_FAOL = True
+                    yubor("▶️ Bot davom etmoqda!")
+                elif txt == "🗑 Tozalash":
+                    for k in AKTIVLAR:
+                        AKTIVLAR[k]["s"] = AKTIVLAR[k]["sk"] = AKTIVLAR[k]["mk"] = None
+                    yubor("🗑 Signallar tozalandi.")
+                elif txt == "📊 Faol Signallar":
+                    out = [f"{AKTIVLAR[k]['n']}: {AKTIVLAR[k][x]['t']} @ {AKTIVLAR[k][x]['in']}" for k in AKTIVLAR for x in ["s", "sk", "mk"] if AKTIVLAR[k][x]]
+                    yubor("\n".join(out) if out else "📭 Faol signallar yo'q.")
+                elif txt == "📈 Statistika":
+                    j = STAT["tp"] + STAT["sl"]
+                    yubor(f"📈 Foyda: {STAT['tp']} | Zarar: {STAT['sl']} | Aniqlik: {round(STAT['tp']/j*100,1) if j else 0}%")
+                elif txt in ["⚡ 100 Pips", "🔥 200 Pips"]:
+                    for k in AKTIVLAR:
+                        tekshir(k, "avto")
+                    yubor("✅ Bozorlar tekshirildi!")
+            if time.time() - last_scan >= 60:
+                for k in AKTIVLAR:
+                    try:
+                        tekshir(k, "avto")
+                    except Exception:
+                        pass
+                last_scan = time.time()
+        except Exception as e:
+            print(e)
+            time.sleep(5)
+        time.sleep(2)
+
+if __name__ == "__main__":
+    threading.Thread(target=loop_bot, daemon=True).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
