@@ -1,199 +1,174 @@
-import os
-import time
-import json
-import math
-import threading
-import requests
+import os, time, json, math, threading, requests
 from flask import Flask
 
 TOKEN = "9073466221:AAGQpv2_6_6UNTg7sRGdPNPln9xgLDFXREs"
 MENING_ID = "771626113"
 OXIRGI_UPDATE_ID = 0
-
 BOT_FAOL = True
 DEPOZIT = 1000.0
-STATISTIKA = {"tp": 0, "sl": 0}
+STAT = {"tp": 0, "sl": 0}
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Oltin Qanot V11.0 MODULAR PRO 24/7 ishlamoqda!"
+    return "Oltin Qanot V11.0 24/7 Live!"
 
 AKTIVLAR = {
-    "GOLD": {"ticker": "GC=F", "nomi": "🥇 OLTIN (XAU/USD)", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 1.0, "sl75": 0.75, "p200": 2.0, "sl150": 1.5, "pip_qiymat": 10.0},
-    "SILVER": {"ticker": "SI=F", "nomi": "🥈 KUMUSH (XAG/USD)", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 3, "p100": 0.100, "sl75": 0.075, "p200": 0.200, "sl150": 0.150, "pip_qiymat": 5.0},
-    "BTC": {"ticker": "BTC-USD", "nomi": "₿ BITCOIN (BTC/USD)", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 100.0, "sl75": 75.0, "p200": 200.0, "sl150": 150.0, "pip_qiymat": 1.0},
-    "ETH": {"ticker": "ETH-USD", "nomi": "🔷 ETHEREUM (ETH/USD)", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 10.0, "sl75": 7.5, "p200": 20.0, "sl150": 15.0, "pip_qiymat": 1.0},
-    "SOL": {"ticker": "SOL-USD", "nomi": "🟣 SOLANA (SOL/USD)", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 1.0, "sl75": 0.75, "p200": 2.0, "sl150": 1.5, "pip_qiymat": 1.0},
-    "EUR": {"ticker": "EURUSD=X", "nomi": "💶 EUR/USD", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 4, "p100": 0.0010, "sl75": 0.0008, "p200": 0.0020, "sl150": 0.0015, "pip_qiymat": 10.0},
-    "GBP": {"ticker": "GBPUSD=X", "nomi": "💷 GBP/USD", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 4, "p100": 0.0010, "sl75": 0.0008, "p200": 0.0020, "sl150": 0.0015, "pip_qiymat": 10.0},
-    "OIL": {"ticker": "BZ=F", "nomi": "🛢 BRENT NEFTI", "savdo": None, "skalp": None, "mikro": None, "aniqlik": 2, "p100": 0.10, "sl75": 0.08, "p200": 0.20, "sl150": 0.15, "pip_qiymat": 10.0}
+    "GOLD": {"t": "GC=F", "n": "🥇 OLTIN", "s": None, "sk": None, "mk": None, "a": 2, "p1": 1.0, "sl1": 0.75, "p2": 2.0, "sl2": 1.5, "pq": 10.0},
+    "SILVER": {"t": "SI=F", "n": "🥈 KUMUSH", "s": None, "sk": None, "mk": None, "a": 3, "p1": 0.1, "sl1": 0.075, "p2": 0.2, "sl2": 0.15, "pq": 5.0},
+    "BTC": {"t": "BTC-USD", "n": "₿ BTC", "s": None, "sk": None, "mk": None, "a": 2, "p1": 100.0, "sl1": 75.0, "p2": 200.0, "sl2": 150.0, "pq": 1.0},
+    "ETH": {"t": "ETH-USD", "n": "🔷 ETH", "s": None, "sk": None, "mk": None, "a": 2, "p1": 10.0, "sl1": 7.5, "p2": 20.0, "sl2": 15.0, "pq": 1.0},
+    "SOL": {"t": "SOL-USD", "n": "🟣 SOL", "s": None, "sk": None, "mk": None, "a": 2, "p1": 1.0, "sl1": 0.75, "p2": 2.0, "sl2": 1.5, "pq": 1.0},
+    "EUR": {"t": "EURUSD=X", "n": "💶 EUR/USD", "s": None, "sk": None, "mk": None, "a": 4, "p1": 0.001, "sl1": 0.0008, "p2": 0.002, "sl2": 0.0015, "pq": 10.0},
+    "GBP": {"t": "GBPUSD=X", "n": "💷 GBP/USD", "s": None, "sk": None, "mk": None, "a": 4, "p1": 0.001, "sl1": 0.0008, "p2": 0.002, "sl2": 0.0015, "pq": 10.0},
+    "OIL": {"t": "BZ=F", "n": "🛢 NEFT", "s": None, "sk": None, "mk": None, "a": 2, "p1": 0.1, "sl1": 0.08, "p2": 0.2, "sl2": 0.15, "pq": 10.0}
 }
 
-def asosiy_klaviatura():
-    holat_tugma = "⏸ Pauza" if BOT_FAOL else "▶️ Davom etish"
-    return {
+def yubor(xabar, menyu="asosiy"):
+    url = f"https://telegram.org{TOKEN}/sendMessage"
+    p_btn = "⏸ Pauza" if BOT_FAOL else "▶️ Davom etish"
+    kb = {
         "keyboard": [
             [{"text": "🥇 Oltin"}, {"text": "🥈 Kumush"}, {"text": "🛢 Neft"}],
             [{"text": "₿ BTC"}, {"text": "🔷 ETH"}, {"text": "🟣 SOL"}],
             [{"text": "💶 EUR/USD"}, {"text": "💷 GBP/USD"}, {"text": "📝 So'zli Analiz"}],
             [{"text": "⚡ 100 Pips"}, {"text": "🔥 200 Pips"}, {"text": "🌡 Bozor Kayfiyati"}],
             [{"text": "💰 Barcha Narxlar"}, {"text": "📊 Faol Signallar"}, {"text": "🧮 Lot Hisoblash"}],
-            [{"text": "📈 Statistika"}, {"text": holat_tugma}, {"text": "🗑 Tozalash"}]
-        ],
-        "resize_keyboard": True
+            [{"text": "📈 Statistika"}, {"text": p_btn}, {"text": "🗑 Tozalash"}]
+        ], "resize_keyboard": True
     }
+    if menyu == "analiz":
+        kb = {
+            "keyboard": [
+                [{"text": "📝 Oltin Analizi"}, {"text": "📝 Kumush Analizi"}, {"text": "📝 Neft Analizi"}],
+                [{"text": "📝 BTC Analizi"}, {"text": "📝 ETH Analizi"}, {"text": "📝 SOL Analizi"}],
+                [{"text": "📝 EUR/USD Analizi"}, {"text": "📝 GBP/USD Analizi"}, {"text": "🔙 Orqaga"}]
+            ], "resize_keyboard": True
+        }
+    requests.post(url, data={"chat_id": MENING_ID, "text": xabar, "reply_markup": json.dumps(kb)}, timeout=15)
 
-def analiz_klaviaturasi():
-    return {
-        "keyboard": [
-            [{"text": "📝 Oltin Analizi"}, {"text": "📝 Kumush Analizi"}, {"text": "📝 Neft Analizi"}],
-            [{"text": "📝 BTC Analizi"}, {"text": "📝 ETH Analizi"}, {"text": "📝 SOL Analizi"}],
-            [{"text": "📝 EUR/USD Analizi"}, {"text": "📝 GBP/USD Analizi"}],
-            [{"text": "🔙 Orqaga"}]
-        ],
-        "resize_keyboard": True
-    }
+def ema(arr, d):
+    k = 2 / (d + 1)
+    res = [arr[0]]
+    for x in arr[1:]:
+        res.append(x * k + res[-1] * (1 - k))
+    return res
 
-def telegramga_yuborish(xabar, menyu="asosiy"):
-    dom = "api.telegram" + ".org/bot"
-    url = "https://" + dom + TOKEN + "/sendMessage"
-    klaviatura = analiz_klaviaturasi() if menyu == "analiz" else asosiy_klaviatura()
-    data = {"chat_id": MENING_ID, "text": xabar, "reply_markup": json.dumps(klaviatura)}
-    requests.post(url, data=data, timeout=15)
+def rsi(arr, d=14):
+    dif = [arr[i] - arr[i - 1] for i in range(1, len(arr))]
+    up = sum(x if x > 0 else 0 for x in dif[-d:]) / d
+    dn = sum(-x if x < 0 else 0 for x in dif[-d:]) / d
+    return 100 if dn == 0 else 100 - (100 / (1 + up / dn))
 
-def ema_hisoblash(narxlar, davr):
-    k = 2 / (davr + 1)
-    birinchi = next(iter(narxlar))
-    ema = [birinchi]
-    for narx in narxlar[1:]:
-        ema.append(narx * k + ema[-1] * (1 - k))
-    return ema
+def get_data(t, iv, rg):
+    url = f"https://yahoo.com{t}?interval={iv}&range={rg}"
+    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15).json()["chart"]["result"][0]["indicators"]["quote"][0]
+    return [x for x in r["close"] if x], [x for x in r["high"] if x], [x for x in r["low"] if x]
 
-def macd_hisoblash(narxlar):
-    ema12 = ema_hisoblash(narxlar, 12)
-    ema26 = ema_hisoblash(narxlar, 26)
-    macd_chiziq = [e12 - e26 for e12, e26 in zip(ema12, ema26)]
-    signal_chiziq = ema_hisoblash(macd_chiziq, 9)
-    return macd_chiziq, signal_chiziq
+def lot_calc(k):
+    return max(0.01, round((DEPOZIT * 0.02) / (15 * AKTIVLAR[k]["pq"]), 2))
 
-def bollinger_hisoblash(narxlar, davr=20):
-    oxirgi_qism = narxlar[-davr:]
-    ortacha = sum(oxirgi_qism) / davr
-    dispersiya = sum((x - ortacha) ** 2 for x in oxirgi_qism) / davr
-    ogish = math.sqrt(dispersiya)
-    return ortacha + (2 * ogish), ortacha, ortacha - (2 * ogish)
+def analiz_yoz(k):
+    a = AKTIVLAR[k]
+    c15, h15, l15 = get_data(a["t"], "15m", "5d")
+    c1h, _, _ = get_data(a["t"], "1h", "1mo")
+    c4h, _, _ = get_data(a["t"], "4h", "3mo")
+    p = round(c15[-1], a["a"])
+    e9, e21, e1h, e4h = ema(c15, 9), ema(c15, 21), ema(c1h, 50), ema(c4h, 50)
+    r = round(rsi(c15), 1)
+    t4 = "yuqoriga" if p > e4h[-1] else "pastga"
+    t1 = "yuqoriga" if p > e1h[-1] else "pastga"
+    q = "xaridorlar qo'lida" if e9[-1] > e21[-1] else "sotuvchilar qo'lida"
+    izoh = "RSI qizib ketgan, korreksiya xavfi bor." if r > 70 else ("RSI sotilgan zonada, sakrash kutilmoqda." if r < 30 else "RSI me'yoriy, trend davom etishi mumkin.")
+    xul = "4H va 1H YUQORIGA — tayanchdan BUY qulay." if t4 == "yuqoriga" and t1 == "yuqoriga" else ("4H va 1H PASTGA — qarshilikdan SELL qulay." if t4 == "pastga" and t1 == "pastga" else "Trendlar aralash — faqat 100/200 pips skalping qiling.")
+    yubor(f"📝 {a['n']} — SO'ZLI ANALIZ\n\n💰 Narx: {p} (Max: {round(max(h15[-96:]), a['a'])} | Min: {round(min(l15[-96:]), a['a'])})\n1️⃣ Trend: 4H {t4}, 1H {t1}. Qisqa ustunlik {q}.\n2️⃣ RSI ({r}): {izoh}\n3️⃣ Xulosa: {xul}", "analiz")
 
-def rsi_hisoblash(narxlar, davr=14):
-    farqlar = [narxlar[i] - narxlar[i - 1] for i in range(1, len(narxlar))]
-    osish = [f if f > 0 else 0 for f in farqlar[-davr:]]
-    tushish = [-f if f < 0 else 0 for f in farqlar[-davr:]]
-    ortacha_osish = sum(osish) / davr
-    ortacha_tushish = sum(tushish) / davr
-    if ortacha_tushish == 0:
-        return 100
-    rs = ortacha_osish / ortacha_tushish
-    return 100 - (100 / (1 + rs))
+def kuzat(k, p):
+    a = AKTIVLAR[k]
+    for key, label in [("s", "SNAYPER"), ("sk", "200 PIPS"), ("mk", "100 PIPS")]:
+        st = a[key]
+        if not st:
+            continue
+        if st["t"] == "BUY":
+            if p >= st["tp"]:
+                STAT["tp"] += 1
+                yubor(f"✅ {a['n']} ({label}): FOYDA YOPILDI! ({st['tp']})")
+                a[key] = None
+            elif p <= st["sl"]:
+                STAT["sl"] += 1
+                yubor(f"🛑 {a['n']} ({label}): STOP LOSS ({st['sl']})")
+                a[key] = None
+        else:
+            if p <= st["tp"]:
+                STAT["tp"] += 1
+                yubor(f"✅ {a['n']} ({label}): FOYDA YOPILDI! ({st['tp']})")
+                a[key] = None
+            elif p >= st["sl"]:
+                STAT["sl"] += 1
+                yubor(f"🛑 {a['n']} ({label}): STOP LOSS ({st['sl']})")
+                a[key] = None
 
-def malumot_olish(ticker, interval, range_val):
-    y_dom = "query1.finance.yahoo" + ".com/v8/finance/chart/"
-    url = f"https://{y_dom}{ticker}?interval={interval}&range={range_val}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    javob = requests.get(url, headers=headers, timeout=15).json()
-    natija = next(iter(javob["chart"]["result"]))
-    quote = next(iter(natija["indicators"]["quote"]))
-    close = [n for n in quote["close"] if n is not None]
-    high = [n for n in quote["high"] if n is not None]
-    low = [n for n in quote["low"] if n is not None]
-    return close, high, low
+def tekshir(k, rejim="avto"):
+    a = AKTIVLAR[k]
+    c15, h15, l15 = get_data(a["t"], "15m", "5d")
+    p = round(c15[-1], a["a"])
+    kuzat(k, p)
+    if rejim == "narx":
+        return f"{a['n']}: {p}"
+    c1h, _, _ = get_data(a["t"], "1h", "1mo")
+    c4h, _, _ = get_data(a["t"], "4h", "3mo")
+    e9, e21, e1h, e4h = ema(c15, 9), ema(c15, 21), ema(c1h, 50), ema(c4h, 50)
+    r = round(rsi(c15), 1)
+    buy = (30 if p > e4h[-1] else 0) + (30 if p > e1h[-1] else 0) + (25 if e9[-1] > e21[-1] else 0) + (15 if 50 < r < 72 else 0)
+    sell = (30 if p < e4h[-1] else 0) + (30 if p < e1h[-1] else 0) + (25 if e9[-1] < e21[-1] else 0) + (15 if 28 < r < 50 else 0)
+    if rejim == "kayfiyat":
+        return f"{a['n']}: {'🟢 BUY ' + str(buy) + '%' if buy >= sell else '🔴 SELL ' + str(sell) + '%'}"
+    if rejim == "tahlil":
+        yubor(f"🎯 {a['n']} — QISQA TAHLIL\n\n💰 Narx: {p}\n📈 RSI: {r} | 🧮 Lot: {lot_calc(k)}\n🟢 BUY: {buy}% | 🔴 SELL: {sell}%")
+        return
+    if not BOT_FAOL:
+        return
+    tr = "BUY" if p > e1h[-1] else "SELL"
+    c1, _, _ = get_data(a["t"], "1m", "1d")
+    p1 = round(c1[-1], a["a"])
+    if a["mk"] is None:
+        m3, m8 = ema(c1, 3), ema(c1, 8)
+        if tr == "BUY" and m3[-2] <= m8[-2] and m3[-1] > m8[-1]:
+            a["mk"] = {"t": "BUY", "in": p1, "tp": round(p1 + a["p1"], a["a"]), "sl": round(p1 - a["sl1"], a["a"])}
+            yubor(f"⚡ 100 PIPS BUY — {a['n']}\n💰 Kirish: {p1}\n🎯 TP: {a['mk']['tp']}\n🛑 SL: {a['mk']['sl']}\n🧮 Lot: {lot_calc(k)}")
+        elif tr == "SELL" and m3[-2] >= m8[-2] and m3[-1] < m8[-1]:
+            a["mk"] = {"t": "SELL", "in": p1, "tp": round(p1 - a["p1"], a["a"]), "sl": round(p1 + a["sl1"], a["a"])}
+            yubor(f"⚡ 100 PIPS SELL — {a['n']}\n💰 Kirish: {p1}\n🎯 TP: {a['mk']['tp']}\n🛑 SL: {a['mk']['sl']}\n🧮 Lot: {lot_calc(k)}")
+    c5, _, _ = get_data(a["t"], "5m", "1d")
+    p5 = round(c5[-1], a["a"])
+    if a["sk"] is None:
+        s5, s13 = ema(c5, 5), ema(c5, 13)
+        if tr == "BUY" and s5[-2] <= s13[-2] and s5[-1] > s13[-1]:
+            a["sk"] = {"t": "BUY", "in": p5, "tp": round(p5 + a["p2"], a["a"]), "sl": round(p5 - a["sl2"], a["a"])}
+            yubor(f"🔥 200 PIPS BUY — {a['n']}\n💰 Kirish: {p5}\n🎯 TP: {a['sk']['tp']}\n🛑 SL: {a['sk']['sl']}\n🧮 Lot: {lot_calc(k)}")
+        elif tr == "SELL" and s5[-2] >= s13[-2] and s5[-1] < s13[-1]:
+            a["sk"] = {"t": "SELL", "in": p5, "tp": round(p5 - a["p2"], a["a"]), "sl": round(p5 + a["sl2"], a["a"])}
+            yubor(f"🔥 200 PIPS SELL — {a['n']}\n💰 Kirish: {p5}\n🎯 TP: {a['sk']['tp']}\n🛑 SL: {a['sk']['sl']}\n🧮 Lot: {lot_calc(k)}")
+    if a["s"] is None:
+        atr = sum(h15[i] - l15[i] for i in range(-14, 0)) / 14
+        if e9[-2] < e21[-2] and e9[-1] > e21[-1] and buy >= 85:
+            a["s"] = {"t": "BUY", "in": p, "tp": round(p + atr * 3, a["a"]), "sl": round(p - atr * 1.5, a["a"])}
+            yubor(f"🎯 SNAYPER BUY — {a['n']}\n💰 Kirish: {p}\n🎯 TP: {a['s']['tp']}\n🛑 SL: {a['s']['sl']}\n🧮 Lot: {lot_calc(k)}")
+        elif e9[-2] > e21[-2] and e9[-1] < e21[-1] and sell >= 85:
+            a["s"] = {"t": "SELL", "in": p, "tp": round(p - atr * 3, a["a"]), "sl": round(p + atr * 1.5, a["a"])}
+            yubor(f"🎯 SNAYPER SELL — {a['n']}\n💰 Kirish: {p}\n🎯 TP: {a['s']['tp']}\n🛑 SL: {a['s']['sl']}\n🧮 Lot: {lot_calc(k)}")
 
-def atr_hisoblash(high, low, close, davr=14):
-    tr_list = []
-    for i in range(1, len(close)):
-        tr = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
-        tr_list.append(tr)
-    return sum(tr_list[-davr:]) / davr
-
-def lot_tavsiya(kalit):
-    risk_summa = DEPOZIT * 0.02
-    lot = round(risk_summa / (15 * AKTIVLAR[kalit]["pip_qiymat"]), 2)
-    return max(0.01, lot)
-
-def katta_trend_olish(ticker):
-    c1h, _, _ = malumot_olish(ticker, "1h", "5d")
-    ema50 = ema_hisoblash(c1h, 50)
-    return "BUY" if c1h[-1] > ema50[-1] else "SELL"
-
-def sozli_analiz_tayyorla(kalit):
-    ticker = AKTIVLAR[kalit]["ticker"]
-    nomi = AKTIVLAR[kalit]["nomi"]
-    anq = AKTIVLAR[kalit]["aniqlik"]
-    c15, h15, l15 = malumot_olish(ticker, "15m", "5d")
-    c1h, _, _ = malumot_olish(ticker, "1h", "1mo")
-    c4h, _, _ = malumot_olish(ticker, "4h", "3mo")
-    narx = round(c15[-1], anq)
-    ema9 = ema_hisoblash(c15, 9)
-    ema21 = ema_hisoblash(c15, 21)
-    ema50_1h = ema_hisoblash(c1h, 50)
-    ema50_4h = ema_hisoblash(c4h, 50)
-    macd_l, sig_l = macd_hisoblash(c15)
-    rsi = round(rsi_hisoblash(c15, 14), 1)
-    max_24h = round(max(h15[-96:]), anq)
-    min_24h = round(min(l15[-96:]), anq)
-    t4 = "yuqoriga" if narx > ema50_4h[-1] else "pastga"
-    t1 = "yuqoriga" if narx > ema50_1h[-1] else "pastga"
-    qisqa = "xaridorlar qo'lida (EMA9 > EMA21)" if ema9[-1] > ema21[-1] else "sotuvchilar qo'lida (EMA9 < EMA21)"
-    impuls = "o'sish impulsi kuchaymoqda" if macd_l[-1] > sig_l[-1] else "pasayish bosimi ortmoqda"
-    if rsi > 70:
-        rsi_izoh = f"RSI ({rsi}) haddan tashqari qizib ketgan — orqaga qaytish xavfi bor, shoshilib BUY ochmang."
-    elif rsi < 30:
-        rsi_izoh = f"RSI ({rsi}) haddan tashqari sotilgan — pastdan yuqoriga sakrash ehtimoli yuqori, shoshilib SELL ochmang."
-    else:
-        rsi_izoh = f"RSI ({rsi}) me'yoriy zonada — narx tanlangan yo'nalishda davom etishi uchun yetarli zaxira bor."
-    if t4 == "yuqoriga" and t1 == "yuqoriga":
-        xulosa = "4H va 1H katta trendlar bir ovozdan YUQORIGA qaragan. Faqat narx tayanchga tekkanda BUY izlash eng to'g'ri strategiya."
-    elif t4 == "pastga" and t1 == "pastga":
-        xulosa = "4H va 1H katta trendlar bir ovozdan PASTGA qaragan. Narx tepaga ko'tarilib qarshilikka urilganda SELL izlash eng xavfsiz yo'l."
-    else:
-        xulosa = f"4H trend {t4}, 1H trend esa {t1} yo'nalgan. Faqat kichik (100/200 pips) skalping bilan ishlash tavsiya etiladi."
-    matn = f"📝 {nomi} — SO'Z BILAN BATAFSIL ANALIZ\n\n💰 Joriy narx: {narx} (Max: {max_24h} | Min: {min_24h})\n\n1️⃣ Trend: 4H {t4}, 1H {t1}. Qisqa ustunlik {qisqa} va {impuls}.\n\n2️⃣ Kuch: {rsi_izoh}\n\n3️⃣ Xulosa: {xulosa}"
-    telegramga_yuborish(matn, menyu="analiz")
-
-def savdoni_kuzatish(kalit, joriy_narx):
-    nomi = AKTIVLAR[kalit]["nomi"]
-    savdo = AKTIVLAR[kalit]["savdo"]
-    if savdo is not None:
-        if savdo["turi"] == "BUY":
-            if not savdo["tp1_yetdi"] and joriy_narx >= savdo["tp1"]:
-                savdo["tp1_yetdi"] = True
-                STATISTIKA["tp"] += 1
-                telegramga_yuborish(f"✅ {nomi} (SNAYPER): TP1 FOYDA! ({savdo['tp1']}) | SL ni {savdo['kirish']} ga suring.")
-            elif joriy_narx >= savdo["tp2"]:
-                STATISTIKA["tp"] += 1
-                telegramga_yuborish(f"🏆 {nomi} (SNAYPER): TP2 YOPILDI! ({savdo['tp2']})")
-                AKTIVLAR[kalit]["savdo"] = None
-            elif joriy_narx <= savdo["sl"]:
-                STATISTIKA["sl"] += 1
-                telegramga_yuborish(f"🛑 {nomi} (SNAYPER): STOP LOSS ({savdo['sl']}).")
-                AKTIVLAR[kalit]["savdo"] = None
-        elif savdo["turi"] == "SELL":
-            if not savdo["tp1_yetdi"] and joriy_narx <= savdo["tp1"]:
-                savdo["tp1_yetdi"] = True
-                STATISTIKA["tp"] += 1
-                telegramga_yuborish(f"✅ {nomi} (SNAYPER): TP1 FOYDA! ({savdo['tp1']}) | SL ni {savdo['kirish']} ga suring.")
-            elif joriy_narx <= savdo["tp2"]:
-                STATISTIKA["tp"] += 1
-                telegramga_yuborish(f"🏆 {nomi} (SNAYPER): TP2 YOPILDI! ({savdo['tp2']})")
-                AKTIVLAR[kalit]["savdo"] = None
-            elif joriy_narx >= savdo["sl"]:
-                STATISTIKA["sl"] += 1
-                telegramga_yuborish(f"🛑 {nomi} (SNAYPER): STOP LOSS ({savdo['sl']}).")
-                AKTIVLAR[kalit]["savdo"] = None
-    skalp = AKTIVLAR[kalit]["skalp"]
-    if skalp is not None:
-        if skalp["turi"] == "BUY":
-            if joriy_narx >= skalp["tp"]:
-                STATISTIKA["tp"] += 1
-                telegramga_yuborish(f"🔥✅ {nomi} (200 PIPS): FOYDA YOPILDI! ({skalp['tp']})")
-                AKTIVLAR[kalit]["skalp"] = None
+def loop_bot():
+    global OXIRGI_UPDATE_ID, BOT_FAOL, DEPOZIT
+    yubor("🚀 Oltin Qanot V11.0 24/7 ishga tushdi!")
+    last_scan = 0
+    btns = {"/start": "GOLD", "🥇 Oltin": "GOLD", "🥈 Kumush": "SILVER", "🛢 Neft": "OIL", "₿ BTC": "BTC", "🔷 ETH": "ETH", "🟣 SOL": "SOL", "💶 EUR/USD": "EUR", "💷 GBP/USD": "GBP"}
+    abtn = {"📝 Oltin Analizi": "GOLD", "📝 Kumush Analizi": "SILVER", "📝 Neft Analizi": "OIL", "📝 BTC Analizi": "BTC", "📝 ETH Analizi": "ETH", "📝 SOL Analizi": "SOL", "📝 EUR/USD Analizi": "EUR", "📝 GBP/USD Analizi": "GBP"}
+    while True:
+        try:
+            res = requests.get(f"https://telegram.org{TOKEN}/getUpdates?offset={OXIRGI_UPDATE_ID + 1}&timeout=10", timeout=15).json().get("result", [])
+            for it in res:
+                OXIRGI_UPDATE_ID = it["update_id"]
+                msg = it.get("message", {})
+                if str(msg.get("from", {}).get("id", "")) != MENING_ID:
