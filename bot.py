@@ -42,7 +42,8 @@ def yubor(xabar, menyu="asosiy"):
         ], "resize_keyboard": True
     }
     if menyu == "analiz":
-        kb = {
+             kb={
+
             "keyboard": [
                 [{"text": "📝 Oltin Analizi"}, {"text": "📝 Kumush Analizi"}, {"text": "📝 Neft Analizi"}],
                 [{"text": "📝 BTC Analizi"}, {"text": "📝 ETH Analizi"}, {"text": "📝 SOL Analizi"}],
@@ -65,7 +66,12 @@ def rsi(arr, d=14):
     return 100 if dn == 0 else 100 - (100 / (1 + up / dn))
 
 def get_data(t, iv, rg):
-    url = f"https://yahoo.com{t}?interval={iv}&range={rg}"
+    yd = "https://finance.yah" + "oo.c" + "om/v8/finance/chart/"
+
+
+
+    url = f"{yd}{t}?interval={iv}&range={rg}"
+
     r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15).json()["chart"]["result"][0]["indicators"]["quote"][0]
     return [x for x in r["close"] if x], [x for x in r["high"] if x], [x for x in r["low"] if x]
 
