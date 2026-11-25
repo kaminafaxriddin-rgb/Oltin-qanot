@@ -26,7 +26,10 @@ AKTIVLAR = {
 }
 
 def yubor(xabar, menyu="asosiy"):
-    url = f"https://telegram.org{TOKEN}/sendMessage"
+        baza = "https://api." + "telegram.org/b" + "ot"
+    url = baza + TOKEN + "/sendMessage"
+
+
     p_btn = "⏸ Pauza" if BOT_FAOL else "▶️ Davom etish"
     kb = {
         "keyboard": [
@@ -167,7 +170,9 @@ def loop_bot():
     abtn = {"📝 Oltin Analizi": "GOLD", "📝 Kumush Analizi": "SILVER", "📝 Neft Analizi": "OIL", "📝 BTC Analizi": "BTC", "📝 ETH Analizi": "ETH", "📝 SOL Analizi": "SOL", "📝 EUR/USD Analizi": "EUR", "📝 GBP/USD Analizi": "GBP"}
     while True:
         try:
-            res = requests.get(f"https://telegram.org{TOKEN}/getUpdates?offset={OXIRGI_UPDATE_ID + 1}&timeout=10", timeout=15).json().get("result", [])
+            baza = "https://api." + "telegram.org/b" + "ot"
+            res = requests.get(baza + TOKEN + "/getUpdates?offset=" + str(OXIRGI_UPDATE_ID + 1) + "&timeout=10", timeout=15).json().get("result", [])
+
             for it in res:
                 OXIRGI_UPDATE_ID = it["update_id"]
                 msg = it.get("message", {})
