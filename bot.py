@@ -26,7 +26,7 @@ AKTIVLAR = {
 }
 
 def yubor(xabar, menyu="asosiy"):
-        baza = "https://api." + "telegram.org/b" + "ot"
+    baza = "https://api." + "telegram.org/b" + "ot"
     url = baza + TOKEN + "/sendMessage"
 
 
